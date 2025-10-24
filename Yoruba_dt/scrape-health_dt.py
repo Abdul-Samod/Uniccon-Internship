@@ -1,7 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
-import csv
 import re
+from openpyxl import Workbook
 
 headers = {"User-Agent": "Mozilla/5.0"}
 
@@ -22,51 +22,69 @@ links = [
     "https://www.bbc.com/yoruba/media-58828628",
     "https://www.bbc.com/yoruba/media-56118334",
     "https://www.bbc.com/yoruba/afrika-54884011",
+    "https://www.bbc.com/yoruba/articles/c0klz0rjxydo", 
+    "https://www.bbc.com/yoruba/articles/cp3ggd8j7k4o",
+    "https://www.bbc.com/yoruba/afrika-60391949",
+    "https://www.bbc.com/yoruba/afrika-60112178",
+    "https://www.bbc.com/yoruba/56513156",
+    "https://www.bbc.com/yoruba/afrika-54030716",
+    "https://www.bbc.com/yoruba/afrika-53476830",
+    "https://www.bbc.com/yoruba/agbaye-48709679",
+    "https://www.bbc.com/yoruba/agbaye-48679504",
+    "https://www.bbc.com/yoruba/articles/c0596q9d80vo",
+    "https://www.bbc.com/yoruba/afrika-54023123",
+    "https://www.bbc.com/yoruba/articles/c0mr91zy7rlo"
 ]
 
-with open("yoruba_health.csv", "w", newline="", encoding="utf-8") as csvfile:
-    writer = csv.writer(csvfile)
-    writer.writerow(["id", "title", "content", "URL"])
+# Create workbook
+wb = Workbook()
+ws = wb.active
+ws.title = "Yoruba Health Data"
+ws.append(["id", "title", "content", "URL"])  # header row
 
-    sentence_id = 1
-    for i, url in enumerate(links, start=1):
-        try:
-            response = requests.get(url, headers=headers, timeout=10)
-        except Exception as e:
-            print(f" ❌ Error fetching {url}: {e}")
-            continue
+sentence_id = 1
+for i, url in enumerate(links, start=1):
+    try:
+        response = requests.get(url, headers=headers, timeout=10)
+    except Exception as e:
+        print(f" ❌ Error fetching {url}: {e}")
+        continue
 
-        if response.status_code == 200:
-            soup = BeautifulSoup(response.text, "html.parser")
+    if response.status_code == 200:
+        soup = BeautifulSoup(response.text, "html.parser")
 
-            # Title fallback
-            title_tag = soup.find("h1") or soup.find("h2")
-            title = title_tag.get_text(strip=True) if title_tag else "No Title"
+        # Title fallback
+        title_tag = soup.find("h1") or soup.find("h2")
+        title = title_tag.get_text(strip=True) if title_tag else "No Title"
 
-            # Get paragraphs
-            paragraphs = [p.get_text(strip=True) for p in soup.find_all("p")]
-            full_text = " ".join(paragraphs)
+        # Get paragraphs
+        paragraphs = [p.get_text(strip=True) for p in soup.find_all("p")]
+        full_text = " ".join(paragraphs)
 
-            # Split into sentences
-            sentences = re.split(r'(?<=[.?!])\s+', full_text)
+        # Split into sentences
+        sentences = re.split(r'(?<=[.?!])\s+', full_text)
 
-            # Filter out unwanted boilerplate
-            unwanted_patterns = [
-                "©",
-                "BBC kò mọ̀ nípa",
-                "End of Èyítí A Ń Kà Jùlọ",
-                "Oríṣun àwòrán"
-            ]
+        # Filter unwanted patterns
+        unwanted_patterns = [
+            "©",
+            "BBC kò mọ̀ nípa",
+            "End of Èyítí A Ń Kà Jùlọ",
+            "Oríṣun àwòrán"
+        ]
 
-            for sentence in sentences:
-                text = sentence.strip()
-                if not text:
-                    continue
-                if any(pattern in text for pattern in unwanted_patterns):
-                    continue
-                writer.writerow([sentence_id, title, text, url])
-                sentence_id += 1
+        for sentence in sentences:
+            text = sentence.strip()
+            if not text:
+                continue
+            if any(pattern in text for pattern in unwanted_patterns):
+                continue
+            ws.append([sentence_id, title, text, url])
+            sentence_id += 1
 
-            print(f" Saved article {i}: {title}")
-        else:
-            print(f" Failed to fetch {url} (status: {response.status_code})")
+        print(f" ✅ Saved article {i}: {title}")
+    else:
+        print(f" ⚠️ Failed to fetch {url} (status: {response.status_code})")
+
+# Save Excel file
+wb.save("yoruba_health.xlsx")
+print("💾 Data saved to yoruba_health.xlsx")
